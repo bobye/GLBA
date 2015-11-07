@@ -11,7 +11,7 @@ library("pracma")
 ## from continous 1D dimension data
 agreement_hyperedge = function (vals, cutoff = 2.0) {
   l = length(vals);
-  if (l==1) return (0.);
+  if (l<=1) return (0.);
   sqrdiff = matrix(vals*vals, l, l) + 
     matrix(vals*vals, l, l, byrow = T) - 
     2* vals %*% t(vals);
@@ -39,10 +39,10 @@ emodata = read.csv("filter_four.csv",
 ratingdata=emodata$valence;
 
 ## set the minimal score difference
-ticks=0.5;
+ticks=0.1;
 
 ## set the minimal score
-lowestbreak=0.5;
+lowestbreak=1-ticks;
 
 ## set the maximal score
 highestbreak=9;
@@ -72,13 +72,13 @@ computetrusts = function (usr_trusts, sdata) {
   agreedata = sdata;
   img_trusts = as.vector((sdata != 0) %*% usr_trusts);
   rcnt = colSums(sdata != 0);
-  randrate=(histcum[1:(length(histcum)-1)] + histcum[2:length(histcum)])/cutoff;
+  randrate=(histcum[1:((length(histcum)-1))] + histcum[2:length(histcum)])/cutoff;
   comlist=c();
   for (i in 1:nrow(sdata)) {
     rawdata=sdata[i,,drop=TRUE];
     if (nnzero(rawdata) > 0) {
       uid=which(rawdata!=0);
-      idx=(rawdata[uid]-lowestbreak)/ticks;
+      idx=round((rawdata[uid]-lowestbreak)/ticks);
       withinrate=(histcum[idx]+histcum[idx+1])/cutoff;
       I=agreement_hyperedge(withinrate);
       rawdata=(I %*% usr_trusts[uid]) / colSums(I);
@@ -107,7 +107,7 @@ create_agreement_hypergraph = function (sparse_ordinal_data, cutoff) {
     if (nnzero(rawdata) > 0) {
       incr = incr+1;
       uid=which(rawdata!=0);
-      idx=(rawdata[uid]-lowestbreak)/ticks;
+      idx=round((rawdata[uid]-lowestbreak)/ticks);
       withinrate=(histcum[idx]+histcum[idx+1])/cutoff;
       I[[incr]]=agreement_hyperedge(withinrate);
       U[[incr]]=uid;

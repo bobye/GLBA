@@ -3,6 +3,10 @@
 ## Jianbo Ye <jxy198 at ist.psu.edu>
 
 ############################################################################
+## define prior
+tau0 = 0.55
+rate0 = 0.67
+
 
 ## compute ratio statistics
 ratio = function(I, rate, gamma) {
@@ -22,7 +26,7 @@ alpha_and_beta = function(I, ab, tau) {
 }
 
 ## solve digamma equations
-gamma_solve = function(rhs, x0, step=10, rate=0.67, delta=1.) {
+gamma_solve = function(rhs, x0, step=10, rate=rate0, delta=1.) {
   m = nrow(x0);
   x = x0;
   for (i in 1:step) {
@@ -63,18 +67,13 @@ varEM_update = function(theta, hypergraph) {
     gamma$psi   = gamma$psi   + sum(ncol(I) - rowSums(I) - 1);
     Delta[U] = Delta[U] + 1;
   }
-#  aPsi = exp((Psi[,1]-Psi[,3])/Delta);
-#  bPsi = exp((Psi[,2]-Psi[,3])/Delta);
-#  sPsi = ((aPsi) + (bPsi));
-#  theta$ab[,1] = ((0.5*aPsi)/(1-sPsi)+0.5);
-#  theta$ab[,2] = ((0.5*bPsi)/(1-sPsi)+0.5);
-#  theta$ab = 2*theta$ab / matrix(rep(theta$ab[,1] + theta$ab[,2],2), m, 2);
+
   theta$ab = gamma_solve(cbind((Psi[,1]-Psi[,3])/Delta, (Psi[,2]-Psi[,3])/Delta), theta$ab, delta = 1/Delta);
-  theta$tau = (Tau + 0.7) / (Delta+1);
+  theta$tau = (Tau + tau0) / (Delta+1);
   theta$gamma = gamma$omega / gamma$psi;
-  plot(rowSums(theta$ab), theta$tau, ylim=c(0, 1), xlab = "Predictability", ylab = "Reliability")
-  #plot(theta$ab[,2], theta$ab[,1], xlab = "beta", ylab = "alpha", asp = 1., xlim = c(0, 5));
-  #abline(a=0, b=theta$gamma / (1-theta$gamma), col = "blue", lwd = 2)
+  #plot(rowSums(theta$ab), theta$tau, ylim=c(0, 1), xlab = "Predictability", ylab = "Reliability")
+  plot(theta$ab[,2], theta$ab[,1], xlab = "beta", ylab = "alpha", asp = 1., xlim = c(0, 5));
+  abline(a=0, b=theta$gamma / (1-theta$gamma), col = "blue", lwd = 2)
   return(theta)
 }
 
