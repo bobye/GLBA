@@ -72,10 +72,9 @@ varEM_update = function(theta, hypergraph) {
   theta$ab = gamma_solve(cbind((Psi[,1]-Psi[,3])/Delta, (Psi[,2]-Psi[,3])/Delta), theta$ab, delta = 1/Delta);
   theta$tau = (Tau + 0.7) / (Delta+1);
   theta$gamma = gamma$omega / gamma$psi;
-#  plot(theta$tau, ylim=c(0, 1))
-#  plot(theta$ab[,1]/(theta$ab[,1]+theta$ab[,2]), ylim=c(0,1))
-#  abline(h = theta$gamma, col = "blue", lwd = 2)
-  plot((theta$ab[,1]+theta$ab[,2]))
+  plot(rowSums(theta$ab), theta$tau, ylim=c(0, 1), xlab = "Predictability", ylab = "Reliability")
+  #plot(theta$ab[,2], theta$ab[,1], xlab = "beta", ylab = "alpha", asp = 1., xlim = c(0, 5));
+  #abline(a=0, b=theta$gamma / (1-theta$gamma), col = "blue", lwd = 2)
   return(theta)
 }
 
