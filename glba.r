@@ -4,16 +4,15 @@
 
 ############################################################################
 ## define prior
-tau0 = 0.55
+tau0 = 0.5
 rate0 = 0.67
 
-
 ## compute ratio statistics
-ratio = function(I, rate, gamma) {
+ratio = function(I, alpha, beta, gamma) {
   J = (1-I);
   diag(J) = 0;
-  logratio = log(rate / gamma) %*% I + 
-             log((1-rate) / (1-gamma)) %*%  J;
+  logratio = log(alpha / (alpha+beta) / gamma) %*% I + 
+             log(beta / (alpha+beta) / (1-gamma)) %*%  J;
   return (exp(logratio));
 }
   
@@ -61,7 +60,7 @@ varEM_update = function(theta, hypergraph) {
     Psi[U,1]=Psi[U,1] + digamma(ab_data$alpha);
     Psi[U,2]=Psi[U,2] + digamma(ab_data$beta);
     Psi[U,3]=Psi[U,3] + digamma(ab_data$alpha + ab_data$beta);
-    r_data = ratio(I, ab$alpha / (ab$alpha + ab$beta), theta$gamma);
+    r_data = ratio(I, ab$alpha, ab$beta, theta$gamma);
     Tau[U] = Tau[U] + r_data * tau / (r_data * tau + 1 - tau);
     gamma$omega = gamma$omega + sum(I %*% (1-tau));
     gamma$psi   = gamma$psi   + sum(ncol(I) - rowSums(I) - 1);
@@ -72,26 +71,23 @@ varEM_update = function(theta, hypergraph) {
   theta$tau = (Tau + tau0) / (Delta+1);
   theta$gamma = gamma$omega / gamma$psi;
   #plot(rowSums(theta$ab), theta$tau, ylim=c(0, 1), xlab = "Predictability", ylab = "Reliability")
-  plot(theta$ab[,2], theta$ab[,1], xlab = "beta", ylab = "alpha", asp = 1., xlim = c(0, 5));
-  abline(a=0, b=theta$gamma / (1-theta$gamma), col = "blue", lwd = 2)
+  rbPal <- colorRampPalette(c('red','green'))
+  colors <- rbPal(10)[as.numeric(cut(theta$tau,breaks = 10))]
+  plot(theta$ab[,2], theta$ab[,1], xlab = "beta", ylab = "alpha", pch = 20, asp = 1., xlim = c(0, 4), ylim = c(0,4), col = colors);
+  abline(a=0, b=theta$gamma / (1-theta$gamma), col = "red", lwd = 2)
   return(theta)
 }
 
 
-n = length(hypergraph$I);
-x = as.data.frame(table(unlist(hypergraph$U)))
-hypergraph$oracles = sort(unique (unlist(hypergraph$U)));
-hypergraph$oracles = hypergraph$oracles[order(x$Freq, decreasing = TRUE)]
-m = length(hypergraph$oracles);
-hypergraph$inv_oracles = as.vector(matrix(0, 1, max(hypergraph$oracles)));
-hypergraph$inv_oracles[hypergraph$oracles] = 1:m;
-
-theta={};
-theta$ab = cbind(matrix(2., m, 1), matrix(1., m, 1));
-theta$tau = as.vector(matrix(0.5, m, 1));
-theta$gamma = 0.37
-
-for (i in 1:50) {
-  theta = varEM_update(theta, hypergraph);
+glba = function(hypergraph) {
+  m = length(hypergraph$oracles);
+  theta={};
+  theta$ab = cbind(matrix(1., m, 1), matrix(1., m, 1));
+  theta$tau = as.vector(matrix(0.5, m, 1));
+  theta$gamma = 0.5
+  
+  for (i in 1:100) {
+    theta = varEM_update(theta, hypergraph);
+  }
+  return(theta);
 }
-

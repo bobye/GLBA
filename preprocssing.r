@@ -1,11 +1,12 @@
 ############################################################################
-## Joint Modeling Oracle Reliability and Regularity in
+## Joint Modeling Oracle Reliability and Human Regularity in
 ## Large-scale Crowdsourced Affective Data
 ## Jianbo Ye <jxy198 at ist.psu.edu>
 
 ############################################################################
 library("Matrix")
 library("pracma")
+library("ggplot2")
 
 ## create hyperedge I_{i,j}^{(k)} within an image k
 ## from continous 1D dimension data
@@ -31,6 +32,7 @@ crossagreement = function (vals0, vals1, trusts, cutoff=2.0) {
   return(((sqrdiff <= cutoff*cutoff) %*% trusts) / sum(trusts));
 }
 
+############################################################################
 ## read csv data
 emodata = read.csv("filter_four.csv", 
                    header=FALSE, 
@@ -39,7 +41,7 @@ emodata = read.csv("filter_four.csv",
 ratingdata=emodata$valence;
 
 ## set the minimal score difference
-ticks=0.1;
+ticks=.1;
 
 ## set the minimal score
 lowestbreak=1-ticks;
@@ -67,6 +69,7 @@ N = max(emodata$uid);
 sdata = sparseMatrix(i=emodata$pid, j=emodata$uid, x=ratingdata, 
                      dims=c(M,N));
 
+############################################################################
 computetrusts = function (usr_trusts, sdata) {
   ## create agreement matrix
   agreedata = sdata;
@@ -116,8 +119,6 @@ create_agreement_hypergraph = function (sparse_ordinal_data, cutoff) {
   return(list("I" =I, "U" =U));
 }
 
-hypergraph = create_agreement_hypergraph(sdata, cutoff);
-
 ## EM-like algorithm
 simpleEM = function () {
   result=computetrusts(rep(1,N), sdata);
@@ -129,6 +130,11 @@ simpleEM = function () {
   }
   return(result)
 }
+
+############################################################################
+
+hypergraph = create_agreement_hypergraph(sdata, cutoff);
+
 
 # result=simpleEM();
 
@@ -143,26 +149,33 @@ plotdata = function (res) {
   abline(v=randtrust, col = "blue", lwd = 2);
 }
 
-plotdata(result);
+# plotdata(result);
+x = as.data.frame(table(unlist(hypergraph$U)))
+hypergraph$oracles = sort(unique (unlist(hypergraph$U)));
+hypergraph$oracles = hypergraph$oracles[order(x$Freq, decreasing = TRUE)]
+hypergraph$inv_oracles = as.vector(matrix(0, 1, max(hypergraph$oracles)));
+hypergraph$inv_oracles[hypergraph$oracles] = 1:length(hypergraph$oracles);
+theta=glba(hypergraph);
+usr=vector("numeric", ncol(sdata));
+usr[hypergraph$oracles] = theta$tau;
 
 ## calculate most trustable images
-imgtrusts=as.vector((sdata != 0) %*% result$usr);
+imgtrusts=as.vector(1-exp((sdata != 0) %*% log(1-usr)));
 labeled=which(imgtrusts > 0);
-avgscores=as.vector(sdata %*% result$usr) / as.vector((sdata != 0) %*% result$usr);
+avgscores=as.vector(sdata %*% usr) / as.vector((sdata != 0) %*% usr);
 #avgscores=as.vector(rowSums(sdata)) / as.vector(rowSums(sdata != 0));
-plot(density(imgtrusts[labeled], adjust = 1, na.rm = TRUE), xlab = "Cum. Trustability", main = "Image Trustabilities")
-abline(v=result$rand * 4, col = "blue", lwd = 2);
+hist(imgtrusts[labeled], breaks = 20, xlab = "Cum. Reliability", main = "Image Reliability")
 #plot(density(avgscores[labeled], adjust = 2, na.rm = TRUE))
 
 
 ## plot trustability vs. avg scores
 df = data.frame(x=rnorm(length(labeled)),y=rnorm(length(labeled)));
-ggplot(df,aes(x=imgtrusts[labeled],y=avgscores[labeled]))+stat_density2d(aes(alpha=..level..), geom="polygon") +xlab("Trustability") +ylab("AvgScore")
+ggplot(df,aes(x=imgtrusts[labeled],y=avgscores[labeled]))+stat_density2d(aes(alpha=..level..), geom="polygon") +xlab("Reliability") +ylab("AvgScore");
 
 ## print top img sorted by trustability
-sorted = sort.int( (avgscores), decreasing = TRUE , index.return = TRUE)
-#write(labeled[sorted$ix[1:1000]], file="arousal_high.txt", ncolumns=1)
-sorted = sort.int( (highestbreak+1 - avgscores), decreasing = TRUE , index.return = TRUE)
-#write(labeled[sorted$ix[1:1000]], file="arousal_low.txt", ncolumns=1)
+sorted = sort.int( (avgscores * imgtrusts), decreasing = TRUE , index.return = TRUE)
+write(labeled[sorted$ix[1:1000]], file="valence_high.txt", ncolumns=1)
+sorted = sort.int( (highestbreak+1 - avgscores) * imgtrusts, decreasing = TRUE , index.return = TRUE)
+write(labeled[sorted$ix[1:1000]], file="valence_low.txt", ncolumns=1)
 
 
