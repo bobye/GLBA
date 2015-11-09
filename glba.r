@@ -4,12 +4,13 @@
 
 ############################################################################
 ## define prior
-tau0 = 0.4
-rate0 = 1.1
+tau0 = 0.5
+rate0 = 0.7
 
 ## compute ratio statistics
-ratio = function(I, alpha, beta, gamma) {
-  J = (1-I);
+ratio = function(I, alpha, beta, gamma, weight =1.) {
+  J = (1-I) * weight;
+  I = I * weight;
   diag(J) = 0;
   logratio = log(alpha / (alpha+beta) / gamma) %*% I + 
              log(beta / (alpha+beta) / (1-gamma)) %*%  J;
@@ -38,6 +39,7 @@ gamma_solve = function(rhs, x0, step=10, rate=rate0, delta=1.) {
                trigamma(x[,2]) -df1 + rate * delta + 1);
     invdf = cbind(df[,4], -df[,3], -df[,2], df[,1]) / matrix(df[,1]*df[,4] - df[,2]*df[,3], m, 4);
     x = x - cbind(invdf[,1]*f[,1] + invdf[,2]*f[,2], invdf[,3]*f[,1] + invdf[,4]*f[,2]);
+    x[x<=0.01] = 0.01 # projected 
   }
   return(x)
 }
@@ -53,17 +55,18 @@ varEM_update = function(theta, hypergraph) {
   for (i in 1:n) {
     I = hypergraph$I[[i]];
     U = hypergraph$inv_oracles[hypergraph$U[[i]]];
+    w = theta$w[U];
     ab = list(alpha = theta$ab[U,1], 
                    beta =  theta$ab[U, 2]);
     tau = theta$tau[U];
-    ab_data = alpha_and_beta(I, ab, tau);
+    ab_data = alpha_and_beta(I, ab, tau * w);
     Psi[U,1]=Psi[U,1] + digamma(ab_data$alpha);
     Psi[U,2]=Psi[U,2] + digamma(ab_data$beta);
     Psi[U,3]=Psi[U,3] + digamma(ab_data$alpha + ab_data$beta);
-    r_data = ratio(I, ab$alpha, ab$beta, theta$gamma);
+    r_data = ratio(I, ab$alpha, ab$beta, theta$gamma, w);
     Tau[U] = Tau[U] + r_data * tau / (r_data * tau + 1 - tau);
-    gamma$omega = gamma$omega + sum(I %*% (1-tau));
-    gamma$psi   = gamma$psi   + sum(ncol(I) - rowSums(I) - 1);
+    gamma$omega = gamma$omega + sum(I %*% ((1-tau) * w));
+    gamma$psi   = gamma$psi   + sum(sum(w) - I %*% w - w);
     Delta[U] = Delta[U] + 1;
   }
 
@@ -79,12 +82,13 @@ varEM_update = function(theta, hypergraph) {
 }
 
 
-glba = function(hypergraph) {
+glba = function(hypergraph, weight = 1.) {
   m = length(hypergraph$oracles);
   theta={};
   theta$ab = cbind(matrix(1., m, 1), matrix(1., m, 1));
   theta$tau = as.vector(matrix(0.5, m, 1));
   theta$gamma = 0.5
+  theta$w = weight * as.vector(matrix(1, m, 1));
   
   for (i in 1:100) {
     theta = varEM_update(theta, hypergraph);

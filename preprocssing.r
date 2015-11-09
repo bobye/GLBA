@@ -184,10 +184,10 @@ ggplot(df,aes(x=imgtrusts[labeled],y=avgscores[labeled]))+stat_density2d(aes(alp
 ## print top img sorted by trustability
 ## print top whose simple average is lower than mid
 sorted = sort.int( (avgscores * imgtrusts), decreasing = TRUE , index.return = TRUE)
-#write(labeled[sorted$ix[1:1000]], file=paste0(metrics[the_metric], "_high.txt"), ncolumns=1)
+write(labeled[sorted$ix[1:100]], file=paste0(metrics[the_metric], "_high.txt"), ncolumns=1)
 write(labeled[sorted$ix[which(avgscores2[labeled][sorted$ix[sorted$x > (highestbreak+1)/2 + 1]] < (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_high0.txt"), ncolumns=1)
 sorted = sort.int( (highestbreak+1 - avgscores) * imgtrusts, decreasing = TRUE , index.return = TRUE)
-#write(labeled[sorted$ix[1:1000]], file=paste0(metrics[the_metric], "_low.txt"), ncolumns=1)
+write(labeled[sorted$ix[1:100]], file=paste0(metrics[the_metric], "_low.txt"), ncolumns=1)
 write(labeled[sorted$ix[which(avgscores2[labeled][sorted$ix[sorted$x > (highestbreak+1)/2 + 1]] > (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_low0.txt"), ncolumns=1)
 
 
