@@ -4,8 +4,8 @@
 
 ############################################################################
 ## define prior
-tau0 = 0.5
-rate0 = 0.67
+tau0 = 0.4
+rate0 = 1.1
 
 ## compute ratio statistics
 ratio = function(I, alpha, beta, gamma) {

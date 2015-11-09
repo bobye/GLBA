@@ -33,21 +33,28 @@ crossagreement = function (vals0, vals1, trusts, cutoff=2.0) {
 }
 
 ############################################################################
+## metadata
+metrics = c("valence", "arousal", "dominance", "likeness");
+ticks_of_metrics = c(0.1, 0.1, 0.1, 1.);
+highestbreak_of_metrics = c(9., 9., 9., 7.);
+
+############################################################################
 ## read csv data
+the_metric = 1;
 emodata = read.csv("filter_four.csv", 
                    header=FALSE, 
-                   col.names = c("pid", "uid", "valence", "arousal", "dominance", "likeness"));
+                   col.names = c("pid", "uid", metrics));
 ## set property of interests
-ratingdata=emodata$valence;
+ratingdata=emodata[[the_metric + 2]];
 
 ## set the minimal score difference
-ticks=.1;
+ticks=ticks_of_metrics[the_metric];
 
 ## set the minimal score
 lowestbreak=1-ticks;
 
 ## set the maximal score
-highestbreak=9;
+highestbreak=highestbreak_of_metrics[the_metric];
 
 ## quantize data into histograms
 histcount = hist(ratingdata, breaks=seq(lowestbreak,highestbreak,ticks));
@@ -163,9 +170,11 @@ usr[hypergraph$oracles] = theta$tau;
 imgtrusts=as.vector(1-exp((sdata != 0) %*% log(1-usr)));
 labeled=which(imgtrusts > 0);
 avgscores=as.vector(sdata %*% usr) / as.vector((sdata != 0) %*% usr);
-#avgscores=as.vector(rowSums(sdata)) / as.vector(rowSums(sdata != 0));
+avgscores2=as.vector(rowSums(sdata)) / as.vector(rowSums(sdata != 0));
 hist(imgtrusts[labeled], breaks = 20, xlab = "Cum. Reliability", main = "Image Reliability")
 #plot(density(avgscores[labeled], adjust = 2, na.rm = TRUE))
+
+print(cor(t(rbind(avgscores[labeled], avgscores2[labeled])), method = "spearman"));
 
 
 ## plot trustability vs. avg scores
@@ -173,9 +182,19 @@ df = data.frame(x=rnorm(length(labeled)),y=rnorm(length(labeled)));
 ggplot(df,aes(x=imgtrusts[labeled],y=avgscores[labeled]))+stat_density2d(aes(alpha=..level..), geom="polygon") +xlab("Reliability") +ylab("AvgScore");
 
 ## print top img sorted by trustability
+## print top whose simple average is lower than mid
 sorted = sort.int( (avgscores * imgtrusts), decreasing = TRUE , index.return = TRUE)
-write(labeled[sorted$ix[1:1000]], file="valence_high.txt", ncolumns=1)
+#write(labeled[sorted$ix[1:1000]], file=paste0(metrics[the_metric], "_high.txt"), ncolumns=1)
+write(labeled[sorted$ix[which(avgscores2[labeled][sorted$ix[sorted$x > (highestbreak+1)/2 + 1]] < (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_high0.txt"), ncolumns=1)
 sorted = sort.int( (highestbreak+1 - avgscores) * imgtrusts, decreasing = TRUE , index.return = TRUE)
-write(labeled[sorted$ix[1:1000]], file="valence_low.txt", ncolumns=1)
+#write(labeled[sorted$ix[1:1000]], file=paste0(metrics[the_metric], "_low.txt"), ncolumns=1)
+write(labeled[sorted$ix[which(avgscores2[labeled][sorted$ix[sorted$x > (highestbreak+1)/2 + 1]] > (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_low0.txt"), ncolumns=1)
 
+
+sorted = sort.int( avgscores2, decreasing = TRUE , index.return = TRUE)
+#write(labeled[sorted$ix[1:1000]], file=paste0(metrics[the_metric], "_high.txt"), ncolumns=1)
+write(labeled[sorted$ix[which(((highestbreak+1 - avgscores) * imgtrusts)[labeled][sorted$ix[sorted$x > (highestbreak+1)/2 + 1]] > (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_high1.txt"), ncolumns=1)
+sorted = sort.int( avgscores2, decreasing = FALSE , index.return = TRUE)
+#write(labeled[sorted$ix[1:1000]], file=paste0(metrics[the_metric], "_low.txt"), ncolumns=1)
+write(labeled[sorted$ix[which((avgscores * imgtrusts)[labeled][sorted$ix[sorted$x < (highestbreak+1)/2 - 1]] > (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_low1.txt"), ncolumns=1)
 
