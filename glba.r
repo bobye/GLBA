@@ -73,7 +73,7 @@ varEM_update = function(theta, hypergraph) {
   #plot(rowSums(theta$ab), theta$tau, ylim=c(0, 1), xlab = "Predictability", ylab = "Reliability")
   rbPal <- colorRampPalette(c('red','green'))
   colors <- rbPal(10)[as.numeric(cut(theta$tau,breaks = 10))]
-  plot(theta$ab[,2], theta$ab[,1], xlab = "beta", ylab = "alpha", pch = 20, asp = 1., xlim = c(0, 4), ylim = c(0,4), col = colors);
+  plot(theta$ab[,2], theta$ab[,1], xlab = "beta", ylab = "alpha", pch = 20, asp = 1., col = colors);
   abline(a=0, b=theta$gamma / (1-theta$gamma), col = "red", lwd = 2)
   return(theta)
 }
