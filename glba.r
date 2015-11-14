@@ -82,16 +82,20 @@ varEM_update = function(theta, hypergraph) {
 }
 
 
-glba = function(hypergraph, weight = 1.) {
+glba = function(hypergraph, weight = 1., tau = 0.5) {
   m = length(hypergraph$oracles);
   theta={};
   theta$ab = cbind(matrix(1., m, 1), matrix(1., m, 1));
-  theta$tau = as.vector(matrix(0.5, m, 1));
+  theta$tau = tau * as.vector(matrix(1, m, 1));
   theta$gamma = 0.5
   theta$w = weight * as.vector(matrix(1, m, 1));
   
   for (i in 1:100) {
     theta = varEM_update(theta, hypergraph);
+    if (i > 50) { # empirical Bayes
+      tau0 <<- mean(theta$tau);
+      rate0 <<- 1/mean(theta$ab);
+    }
   }
   return(theta);
 }

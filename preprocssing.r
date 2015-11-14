@@ -40,7 +40,7 @@ highestbreak_of_metrics = c(9., 9., 9., 7.);
 
 ############################################################################
 ## read csv data
-the_metric = 3;
+the_metric = 4;
 emodata = read.csv("filter_four.csv", 
                    header=FALSE, 
                    col.names = c("pid", "uid", metrics));
