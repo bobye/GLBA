@@ -5,7 +5,8 @@
 ############################################################################
 ## define prior
 tau0 = 0.5
-rate0 = 0.7
+rate0 = 0.1
+gamma0 = 0.3 # fixed prior
 
 ## compute ratio statistics
 ratio = function(I, alpha, beta, gamma, weight =1.) {
@@ -72,7 +73,7 @@ varEM_update = function(theta, hypergraph) {
 
   theta$ab = gamma_solve(cbind((Psi[,1]-Psi[,3])/Delta, (Psi[,2]-Psi[,3])/Delta), theta$ab, delta = 1/Delta);
   theta$tau = (Tau + tau0) / (Delta+1);
-  theta$gamma = gamma$omega / gamma$psi;
+  theta$gamma = (gamma$omega + gamma0) / (gamma$psi + 1);
   #plot(rowSums(theta$ab), theta$tau, ylim=c(0, 1), xlab = "Predictability", ylab = "Reliability")
   rbPal <- colorRampPalette(c('red','green'))
   colors <- rbPal(10)[as.numeric(cut(theta$tau,breaks = 10))]
@@ -82,15 +83,15 @@ varEM_update = function(theta, hypergraph) {
 }
 
 
-glba = function(hypergraph, weight = 1., tau = 0.5) {
+glba = function(hypergraph, weight = 1., tau = 0.5, iter = 100) {
   m = length(hypergraph$oracles);
   theta={};
-  theta$ab = cbind(matrix(1., m, 1), matrix(1., m, 1));
+  theta$ab = cbind(matrix(1., m, 1), matrix(1., m, 1)) / (2*tau0);
   theta$tau = tau * as.vector(matrix(1, m, 1));
   theta$gamma = 0.5
   theta$w = weight * as.vector(matrix(1, m, 1));
   
-  for (i in 1:100) {
+  for (i in 1:iter) {
     theta = varEM_update(theta, hypergraph);
     if (i > 50) { # empirical Bayes
       tau0 <<- mean(theta$tau);

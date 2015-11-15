@@ -41,11 +41,19 @@ highestbreak_of_metrics = c(9., 9., 9., 7.);
 ############################################################################
 ## read csv data
 the_metric = 4;
-emodata = read.csv("filter_four.csv", 
-                   header=FALSE, 
-                   col.names = c("pid", "uid", metrics));
-## set property of interests
-ratingdata=emodata[[the_metric + 2]];
+dataset = "psy" ## {"amt", "psy"}
+
+if (dataset == "amt") {
+  emodata = read.csv("filter_four.csv", 
+                     header=FALSE, 
+                     col.names = c("pid", "uid", metrics));
+  ratingdata=emodata[[the_metric + 2]]; ## set property of interests
+} else if (dataset == "psy") {
+  emodata = read.csv("test_retest_filter_four.csv", head = FALSE,
+                     col.names = c("pid", "uid", "valence1", "valence2", "arousal1", "arousal2", "dominance1", "dominance2", "likeness1", "likeness2"));
+  ratingdata = emodata[[the_metric*2 + 1]]; ## set property of interests
+  ratingdata2 = emodata[[the_metric*2 + 2]]; ## secondary retest data;
+}
 
 ## set the minimal score difference
 ticks=ticks_of_metrics[the_metric];
@@ -198,3 +206,9 @@ sorted = sort.int( avgscores2, decreasing = FALSE , index.return = TRUE)
 #write(labeled[sorted$ix[1:1000]], file=paste0(metrics[the_metric], "_low.txt"), ncolumns=1)
 write(labeled[sorted$ix[which((avgscores * imgtrusts)[labeled][sorted$ix[sorted$x < (highestbreak+1)/2 - 1]] > (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_low1.txt"), ncolumns=1)
 
+## check correctness of reliability
+if (dataset == "psy") {
+  errdata = sparseMatrix(i=emodata$pid, j=emodata$uid, x=ratingdata - ratingdata2, dims=c(M,N));
+  retest_err = colMeans((errdata * errdata))[hypergraph$oracles];
+  plot(theta$tau, retest_err);
+}
