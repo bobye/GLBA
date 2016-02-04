@@ -40,8 +40,8 @@ highestbreak_of_metrics = c(9., 9., 9., 7.);
 
 ############################################################################
 ## read csv data
-the_metric = 4;
-dataset = "psy" ## {"amt", "psy"}
+the_metric = 1;
+dataset = "amt" ## {"amt", "psy"}
 
 if (dataset == "amt") {
   emodata = read.csv("filter_four.csv", 
@@ -64,6 +64,9 @@ lowestbreak=1-ticks;
 ## set the maximal score
 highestbreak=highestbreak_of_metrics[the_metric];
 
+## set the neutral score
+neutralbreak = (1 + highestbreak) / 2;
+
 ## quantize data into histograms
 histcount = hist(ratingdata, breaks=seq(lowestbreak,highestbreak,ticks));
 
@@ -74,7 +77,8 @@ n=length(ratingdata);
 histcum=cumsum(c(0, histcount$counts));
 
 ## set the cutoff agreement threshold
-cutoff=nrow(emodata)/5.;
+threshold = 0.2
+cutoff=nrow(emodata) * threshold;
 
 ## set image_count and user_count
 M = max(emodata$pid);
@@ -115,7 +119,7 @@ computetrusts = function (usr_trusts, sdata) {
 
 
 
-create_agreement_hypergraph = function (sparse_ordinal_data, cutoff) {
+create_agreement_hypergraph = function (sdata, cutoff) {
   n = sum(rowSums(sdata != 0) > 0);
   I = list(n);
   U = list(n);
@@ -133,6 +137,28 @@ create_agreement_hypergraph = function (sparse_ordinal_data, cutoff) {
   }
   return(list("I" =I, "U" =U));
 }
+
+# estimated_agreement = function(sdata, avgscores, cutoff) {
+#   n = sum(rowSums(sdata !=0) > 0);
+#   I = list(n);
+#   U = list(n);
+#   incr = 0;
+#   for (i in 1:nrow(sdata)) {
+#     rawdata = sdata[i,,drop = TRUE];
+#     est = avgscores[i];
+#     if (nnzero(rawdata) > 0) {
+#       incr = incr+1;
+#       uid=which(rawdata!=0);
+#       idx=round((rawdata[uid]-lowestbreak)/ticks);
+#       withinrate=(histcum[idx]+histcum[idx+1])/cutoff;
+#       estidx=round((est - lowestbreak)/ticks);
+#       estwithinrate=(histcum[estidx]+histcum[estidx+1])/cutoff;
+#       I[[incr]] = abs(withinrate - estwithinrate) < 2.0;
+#       U[[incr]] = uid;
+#     }
+#   }
+#   return(list("I"=I, "U"=U));
+# }
 
 ## EM-like algorithm
 simpleEM = function () {
@@ -182,6 +208,7 @@ avgscores2=as.vector(rowSums(sdata)) / as.vector(rowSums(sdata != 0));
 hist(imgtrusts[labeled], breaks = 20, xlab = "Cum. Reliability", main = "Image Reliability")
 #plot(density(avgscores[labeled], adjust = 2, na.rm = TRUE))
 
+
 print(cor(t(rbind(avgscores[labeled], avgscores2[labeled])), method = "spearman"));
 
 
@@ -209,6 +236,22 @@ write(labeled[sorted$ix[which((avgscores * imgtrusts)[labeled][sorted$ix[sorted$
 ## check correctness of reliability
 if (dataset == "psy") {
   errdata = sparseMatrix(i=emodata$pid, j=emodata$uid, x=ratingdata - ratingdata2, dims=c(M,N));
-  retest_err = colMeans((errdata * errdata))[hypergraph$oracles];
-  plot(theta$tau, retest_err);
+  retest_err = sqrt(colMeans((errdata * errdata))[hypergraph$oracles]);
+  plot(theta$tau, retest_err, xlab = "Reliability", ylab = "Retest MSE");
+
+  conserv = sparseMatrix(i=emodata$pid, j=emodata$uid, x=ratingdata - neutralbreak, dims=c(M,N));  
+  conserv = sqrt(colMeans((conserv * conserv))[hypergraph$oracles]);
+  print(cor(t(rbind(conserv, retest_err)), method = "spearman"));
+    
+  idx1=round((ratingdata-lowestbreak)/ticks);
+  idx2=round((ratingdata2-lowestbreak)/ticks);
+  withinrate1=(histcum[idx1]+histcum[idx1+1])/cutoff;
+  withinrate2=(histcum[idx2]+histcum[idx2+1])/cutoff;
+  print(mean(abs(withinrate1-withinrate2) < 2.0));
+  agreement_per_image = as.vector(matrix(0, length(hypergraph$I)))
+  for (i in 1:length(agreement_per_image)) {
+    agreement_per_image[i] = sum(hypergraph$I[[i]]) / (ncol(hypergraph$I[[i]])-1);
+  }
+  print(sum(agreement_per_image) / length(ratingdata))
+  print(cor(t(rbind(1-theta$tau, retest_err)), method = "spearman"))
 }

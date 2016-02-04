@@ -5,8 +5,9 @@
 ############################################################################
 ## define prior
 tau0 = 0.5
-rate0 = 0.1
-gamma0 = 0.3 # fixed prior
+rate0 = 0.7
+gamma0 = 0.3 # fixed prior, not critical
+max_gamma = 0.5
 
 ## compute ratio statistics
 ratio = function(I, alpha, beta, gamma, weight =1.) {
@@ -45,6 +46,23 @@ gamma_solve = function(rhs, x0, step=10, rate=rate0, delta=1.) {
   return(x)
 }
 
+draw_oracles = function(theta) {
+  #plot(rowSums(theta$ab), theta$tau, ylim=c(0, 1), xlab = "Predictability", ylab = "Reliability")
+  rbPal <- colorRampPalette(c('red','green'))
+  colors <- rbPal(10)[as.numeric(cut(theta$tau,breaks = 10))]
+  plot(theta$ab[,2], theta$ab[,1], xlab = "beta", ylab = "alpha", pch = 20, asp = 1., col = colors);
+  abline(a=0, b=theta$gamma / (1-theta$gamma), col = "red", lwd = 2)  
+}
+
+draw_top = function(thetas, gammas = seq(0.3, 0.48, 0.02), top = 16) {
+  plot(gammas, sapply(thetas, function (x) x$tau[1]), type = 'o', ylim = c(0,1), xlab = "gamma", ylab = "tau");
+  for (i in 2:top) {
+    lines(gammas, sapply(thetas, function (x) x$tau[i]), type = 'o', ylim = c(0,1));
+  }
+  taus=sapply(thetas, function(x,y) x$tau[y], y=1:length(thetas[[1]]$tau));
+  return(taus);
+}
+
 ## Variational EM update function
 varEM_update = function(theta, hypergraph) {
   n = length(hypergraph$I); 
@@ -58,7 +76,7 @@ varEM_update = function(theta, hypergraph) {
     U = hypergraph$inv_oracles[hypergraph$U[[i]]];
     w = theta$w[U];
     ab = list(alpha = theta$ab[U,1], 
-                   beta =  theta$ab[U, 2]);
+              beta =  theta$ab[U, 2]);
     tau = theta$tau[U];
     ab_data = alpha_and_beta(I, ab, tau * w);
     Psi[U,1]=Psi[U,1] + digamma(ab_data$alpha);
@@ -73,30 +91,68 @@ varEM_update = function(theta, hypergraph) {
 
   theta$ab = gamma_solve(cbind((Psi[,1]-Psi[,3])/Delta, (Psi[,2]-Psi[,3])/Delta), theta$ab, delta = 1/Delta);
   theta$tau = (Tau + tau0) / (Delta+1);
-  theta$gamma = (gamma$omega + gamma0) / (gamma$psi + 1);
-  #plot(rowSums(theta$ab), theta$tau, ylim=c(0, 1), xlab = "Predictability", ylab = "Reliability")
-  rbPal <- colorRampPalette(c('red','green'))
-  colors <- rbPal(10)[as.numeric(cut(theta$tau,breaks = 10))]
-  plot(theta$ab[,2], theta$ab[,1], xlab = "beta", ylab = "alpha", pch = 20, asp = 1., col = colors);
-  abline(a=0, b=theta$gamma / (1-theta$gamma), col = "red", lwd = 2)
+  #theta$gamma = min(max_gamma, (gamma$omega + gamma0) / (gamma$psi + 1));
+  draw_oracles(theta);
   return(theta)
 }
 
+# glba_proj = function(estimated, hypergraph, theta, ab=cbind(3,1)) {
+#   n=length(hypergraph$I);
+#   Psi = as.vector(matrix(0, 1, 3));
+#   Delta = 0;
+#   for (i in 1:n) {
+#     U = hypergraph$inv_oracles[hypergraph$U[[i]]];
+#     I = matrix(estimated$I[[i]], nrow=1, ncol=length(U));
+#     w = theta$w[U];
+#     ab_local = list(alpha = ab[1], beta =  ab[2]);
+#     tau = theta$tau[U];
+#     ab_data = alpha_and_beta(I, ab_local, tau * w);
+#     #print(ab_data)
+#     Psi[1] = Psi[1] + digamma(ab_data$alpha);
+#     Psi[2] = Psi[2] + digamma(ab_data$beta);
+#     Psi[3] = Psi[3] + digamma(ab_data$alpha + ab_data$beta);
+#     Delta = Delta + 1;
+#     ab = gamma_solve(cbind((Psi[1]-Psi[3])/Delta, (Psi[2]-Psi[3])/Delta), ab, delta = 1/Delta);
+#   }
+#   return(ab);
+# }
 
-glba = function(hypergraph, weight = 1., tau = 0.5, iter = 100) {
-  m = length(hypergraph$oracles);
-  theta={};
-  theta$ab = cbind(matrix(1., m, 1), matrix(1., m, 1)) / (2*tau0);
-  theta$tau = tau * as.vector(matrix(1, m, 1));
-  theta$gamma = 0.5
-  theta$w = weight * as.vector(matrix(1, m, 1));
+glba = function(hypergraph, weight = 1., tau = 0.5, iter = 100, gamma = 0.3, theta0 = NULL) {
+  if (!is.null(theta0)) {
+    theta = theta0
+  } else {
+    m = length(hypergraph$oracles);
+    theta={};
+    theta$ab = cbind(matrix(1., m, 1), matrix(1., m, 1)) / (2*tau0);
+    theta$tau = tau * as.vector(matrix(1, m, 1));
+    theta$gamma = gamma;
+    theta$w = weight * as.vector(matrix(1, m, 1));    
+  }
   
   for (i in 1:iter) {
     theta = varEM_update(theta, hypergraph);
     if (i > 50) { # empirical Bayes
-      tau0 <<- mean(theta$tau);
-      rate0 <<- 1/mean(theta$ab);
+      #tau0 <<- median(theta$tau);
+      #rate0 <<- 1/median(theta$ab);
     }
   }
   return(theta);
+}
+
+
+glba_curve = function(hypergraph, gammas = seq(0.3, 0.48, 0.02)) {
+  thetas = list(length(gammas));
+  
+  cat(sprintf("gamma: %.2f ... ", gammas[1]))
+  thetas[[1]] = glba(hypergraph, gamma = gammas[1]);
+  cat(sprintf("[done]\n"))
+  for (i in 2:length(gammas)) {
+    thetas[[i]] = thetas[[i-1]];
+    thetas[[i]]$gamma = gammas[i];
+    cat(sprintf("gamma: %.2f ... ", gammas[i]))
+    thetas[[i]] = glba(hypergraph, theta0 = thetas[[i]]);
+    cat(sprintf("[done]\n"))
+  }
+  taus=draw_top(thetas, gammas);
+  return(list("thetas" = thetas, "taus" = taus));
 }
