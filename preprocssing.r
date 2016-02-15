@@ -67,27 +67,39 @@ highestbreak=highestbreak_of_metrics[the_metric];
 ## set the neutral score
 neutralbreak = (1 + highestbreak) / 2;
 
+
+## create spammers
+number_of_spammers=10;
+number_of_labels_per_spammer=30;
+MaxRealUid=max(emodata$uid);
+spammer=list();
+spammer$pid=sample(emodata$pid, number_of_labels_per_spammer * number_of_spammers);
+spammer$uid=MaxRealUid+rep(1:number_of_spammers, each=number_of_labels_per_spammer);
+spammer$rate=sample(ratingdata, number_of_labels_per_spammer * number_of_spammers);
+
+## set image_count and user_count
+M = max(emodata$pid);
+N = max(emodata$uid) + number_of_spammers;
+
 ## quantize data into histograms
-histcount = hist(ratingdata, breaks=seq(lowestbreak,highestbreak,ticks));
+histcount = hist(c(ratingdata, spammer$rate), breaks=seq(lowestbreak,highestbreak,ticks));
 
 ## set number of ratings
-n=length(ratingdata);
+n=length(ratingdata) + number_of_spammers * number_of_labels_per_spammer;
 
 ## set percentiles at each score
 histcum=cumsum(c(0, histcount$counts));
 
 ## set the cutoff agreement threshold
 threshold = 0.2
-cutoff=nrow(emodata) * threshold;
-
-## set image_count and user_count
-M = max(emodata$pid);
-N = max(emodata$uid);
+cutoff=n * threshold;
 
 ## create raw sparse matrix data
-sdata = sparseMatrix(i=emodata$pid, j=emodata$uid, x=ratingdata, 
+#sdata = sparseMatrix(i=emodata$pid, j=emodata$uid, x=ratingdata, dims=c(M,N));
+sdata = sparseMatrix(i=c(emodata$pid, spammer$pid), 
+                     j=c(emodata$uid, spammer$uid), 
+                     x=c(ratingdata, spammer$rate), 
                      dims=c(M,N));
-
 ############################################################################
 computetrusts = function (usr_trusts, sdata) {
   ## create agreement matrix
@@ -132,6 +144,7 @@ create_agreement_hypergraph = function (sdata, cutoff) {
       idx=round((rawdata[uid]-lowestbreak)/ticks);
       withinrate=(histcum[idx]+histcum[idx+1])/cutoff;
       I[[incr]]=agreement_hyperedge(withinrate);
+      stopifnot(is.finite(withinrate));
       U[[incr]]=uid;
     }
   }
@@ -196,42 +209,44 @@ hypergraph$oracles = sort(unique (unlist(hypergraph$U)));
 hypergraph$oracles = hypergraph$oracles[order(x$Freq, decreasing = TRUE)]
 hypergraph$inv_oracles = as.vector(matrix(0, 1, max(hypergraph$oracles)));
 hypergraph$inv_oracles[hypergraph$oracles] = 1:length(hypergraph$oracles);
-theta=glba(hypergraph);
-usr=vector("numeric", ncol(sdata));
-usr[hypergraph$oracles] = theta$tau;
+
+
+#theta=glba(hypergraph);
+#usr=vector("numeric", ncol(sdata));
+#usr[hypergraph$oracles] = theta$tau;
 
 ## calculate most trustable images
-imgtrusts=as.vector(1-exp((sdata != 0) %*% log(1-usr)));
-labeled=which(imgtrusts > 0);
-avgscores=as.vector(sdata %*% usr) / as.vector((sdata != 0) %*% usr);
-avgscores2=as.vector(rowSums(sdata)) / as.vector(rowSums(sdata != 0));
-hist(imgtrusts[labeled], breaks = 20, xlab = "Cum. Reliability", main = "Image Reliability")
+#imgtrusts=as.vector(1-exp((sdata != 0) %*% log(1-usr)));
+#labeled=which(imgtrusts > 0);
+#avgscores=as.vector(sdata %*% usr) / as.vector((sdata != 0) %*% usr);
+#avgscores2=as.vector(rowSums(sdata)) / as.vector(rowSums(sdata != 0));
+#hist(imgtrusts[labeled], breaks = 20, xlab = "Cum. Reliability", main = "Image Reliability")
 #plot(density(avgscores[labeled], adjust = 2, na.rm = TRUE))
 
 
-print(cor(t(rbind(avgscores[labeled], avgscores2[labeled])), method = "spearman"));
+#print(cor(t(rbind(avgscores[labeled], avgscores2[labeled])), method = "spearman"));
 
 
 ## plot trustability vs. avg scores
-df = data.frame(x=rnorm(length(labeled)),y=rnorm(length(labeled)));
-ggplot(df,aes(x=imgtrusts[labeled],y=avgscores[labeled]))+stat_density2d(aes(alpha=..level..), geom="polygon") +xlab("Reliability") +ylab("AvgScore");
+#df = data.frame(x=rnorm(length(labeled)),y=rnorm(length(labeled)));
+#ggplot(df,aes(x=imgtrusts[labeled],y=avgscores[labeled]))+stat_density2d(aes(alpha=..level..), geom="polygon") +xlab("Reliability") +ylab("AvgScore");
 
 ## print top img sorted by trustability
 ## print top whose simple average is lower than mid
-sorted = sort.int( (avgscores * imgtrusts), decreasing = TRUE , index.return = TRUE)
-write(labeled[sorted$ix[1:100]], file=paste0(metrics[the_metric], "_high.txt"), ncolumns=1)
-write(labeled[sorted$ix[which(avgscores2[labeled][sorted$ix[sorted$x > (highestbreak+1)/2 + 1]] < (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_high0.txt"), ncolumns=1)
-sorted = sort.int( (highestbreak+1 - avgscores) * imgtrusts, decreasing = TRUE , index.return = TRUE)
-write(labeled[sorted$ix[1:100]], file=paste0(metrics[the_metric], "_low.txt"), ncolumns=1)
-write(labeled[sorted$ix[which(avgscores2[labeled][sorted$ix[sorted$x > (highestbreak+1)/2 + 1]] > (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_low0.txt"), ncolumns=1)
+#sorted = sort.int( (avgscores * imgtrusts), decreasing = TRUE , index.return = TRUE)
+#write(labeled[sorted$ix[1:100]], file=paste0(metrics[the_metric], "_high.txt"), ncolumns=1)
+#write(labeled[sorted$ix[which(avgscores2[labeled][sorted$ix[sorted$x > (highestbreak+1)/2 + 1]] < (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_high0.txt"), ncolumns=1)
+#sorted = sort.int( (highestbreak+1 - avgscores) * imgtrusts, decreasing = TRUE , index.return = TRUE)
+#write(labeled[sorted$ix[1:100]], file=paste0(metrics[the_metric], "_low.txt"), ncolumns=1)
+#write(labeled[sorted$ix[which(avgscores2[labeled][sorted$ix[sorted$x > (highestbreak+1)/2 + 1]] > (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_low0.txt"), ncolumns=1)
 
 
-sorted = sort.int( avgscores2, decreasing = TRUE , index.return = TRUE)
+#sorted = sort.int( avgscores2, decreasing = TRUE , index.return = TRUE)
 #write(labeled[sorted$ix[1:1000]], file=paste0(metrics[the_metric], "_high.txt"), ncolumns=1)
-write(labeled[sorted$ix[which(((highestbreak+1 - avgscores) * imgtrusts)[labeled][sorted$ix[sorted$x > (highestbreak+1)/2 + 1]] > (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_high1.txt"), ncolumns=1)
-sorted = sort.int( avgscores2, decreasing = FALSE , index.return = TRUE)
+#write(labeled[sorted$ix[which(((highestbreak+1 - avgscores) * imgtrusts)[labeled][sorted$ix[sorted$x > (highestbreak+1)/2 + 1]] > (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_high1.txt"), ncolumns=1)
+#sorted = sort.int( avgscores2, decreasing = FALSE , index.return = TRUE)
 #write(labeled[sorted$ix[1:1000]], file=paste0(metrics[the_metric], "_low.txt"), ncolumns=1)
-write(labeled[sorted$ix[which((avgscores * imgtrusts)[labeled][sorted$ix[sorted$x < (highestbreak+1)/2 - 1]] > (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_low1.txt"), ncolumns=1)
+#write(labeled[sorted$ix[which((avgscores * imgtrusts)[labeled][sorted$ix[sorted$x < (highestbreak+1)/2 - 1]] > (highestbreak+1)/2)]], file=paste0(metrics[the_metric], "_low1.txt"), ncolumns=1)
 
 ## check correctness of reliability
 if (dataset == "psy") {
