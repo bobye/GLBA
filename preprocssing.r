@@ -1,6 +1,4 @@
 ############################################################################
-## Joint Modeling Oracle Reliability and Human Regularity in
-## Large-scale Crowdsourced Affective Data
 ## Jianbo Ye <jxy198 at ist.psu.edu>
 
 ############################################################################
@@ -69,13 +67,14 @@ neutralbreak = (1 + highestbreak) / 2;
 
 
 ## create spammers
-number_of_spammers=10;
-number_of_labels_per_spammer=30;
+number_of_spammers=0; # option to set (default: 0)
+number_of_labels_per_spammer=50;
 MaxRealUid=max(emodata$uid);
 spammer=list();
 spammer$pid=sample(emodata$pid, number_of_labels_per_spammer * number_of_spammers);
 spammer$uid=MaxRealUid+rep(1:number_of_spammers, each=number_of_labels_per_spammer);
 spammer$rate=sample(ratingdata, number_of_labels_per_spammer * number_of_spammers);
+labeled_spammers=read.delim("spammers.txt", header = FALSE)$V1;
 
 ## set image_count and user_count
 M = max(emodata$pid);
@@ -95,11 +94,14 @@ threshold = 0.2
 cutoff=n * threshold;
 
 ## create raw sparse matrix data
-#sdata = sparseMatrix(i=emodata$pid, j=emodata$uid, x=ratingdata, dims=c(M,N));
-sdata = sparseMatrix(i=c(emodata$pid, spammer$pid), 
-                     j=c(emodata$uid, spammer$uid), 
-                     x=c(ratingdata, spammer$rate), 
-                     dims=c(M,N));
+if (number_of_spammers == 0) {
+  sdata = sparseMatrix(i=emodata$pid, j=emodata$uid, x=ratingdata, dims=c(M,N));
+} else {
+  sdata = sparseMatrix(i=c(emodata$pid, spammer$pid), 
+                       j=c(emodata$uid, spammer$uid), 
+                       x=c(ratingdata, spammer$rate), 
+                       dims=c(M,N));
+}
 ############################################################################
 computetrusts = function (usr_trusts, sdata) {
   ## create agreement matrix
