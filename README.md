@@ -6,7 +6,10 @@ Probabilistic Multigraph Modeling for Improving the Quality of Crowdsourced Affe
 IEEE Transactions on Affective Computing (To appear)
 
 ## Dataset
-TBA
+
+This repository compiles a (ID,Score) dataset `filter_four.csv` for demonstration purpose, which is a derivative of dataset EmoSet described in X. Lu's dissertation work. The use of this demo set is restricted only to explore the functionality of code.  
+
+X. Lu, “Visual characteristics for computational prediction of aesthetics and evoked emotions,” Ph.D. dissertation, The Pennsylvania State Uni- versity, 2015, chapter 5. [Online available](https://etda.libraries.psu.edu/catalog/28857)
 
 ## How to run
 
@@ -15,7 +18,7 @@ Load model
 > GLBA
 ```
 
-Load data (default: valence)
+Load data (default: valence, `the_metric = 1`)
 ```
 > preprocssing
 ```
