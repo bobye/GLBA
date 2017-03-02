@@ -3,11 +3,15 @@ This repository includes the R code for Gated Latent Beta Allocation (GLBA) and 
 
 Jianbo Ye, Jia Li, Michelle Newman, Reginald B. Adams, Jr., James Z. Wang, "Probabilistic Multigraph Modeling for Improving the Quality of Crowdsourced Affective Data," IEEE Transactions on Affective Computing (To appear).
 
+![](https://github.com/bobye/GLBA/raw/master/Teaser%20Image.png)
+
 ## Dataset
 
 This repository compiles a (ID,Score) dataset `filter_four.csv` for demonstration purpose, which is a derivative of dataset EmoSet described in X. Lu's dissertation work. The use of this demo set is restricted only to explore the functionality of code.  
 
 X. Lu, “Visual characteristics for computational prediction of aesthetics and evoked emotions,” Ph.D. dissertation, The Pennsylvania State Uni- versity, 2015, chapter 5. [Online available](https://etda.libraries.psu.edu/catalog/28857)
+
+
 
 ## How to run
 
