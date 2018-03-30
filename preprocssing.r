@@ -114,7 +114,7 @@ spammer=list();
 spammer$pid=sample(emodata$pid, number_of_labels_per_spammer * number_of_spammers);
 spammer$uid=MaxRealUid+rep(1:number_of_spammers, each=number_of_labels_per_spammer);
 spammer$rate=sample(ratingdata, number_of_labels_per_spammer * number_of_spammers);
-labeled_spammers=read.delim("spammers.txt", header = FALSE)$V1;
+#labeled_spammers=read.delim("spammers.txt", header = FALSE)$V1;
 
 ## set image_count and user_count
 M = max(emodata$pid);
